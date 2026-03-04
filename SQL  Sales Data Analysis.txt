@@ -1,0 +1,100 @@
+-- Retail Sales Data Analysis (PostgreSQL)
+-- Author: Fiona Ezealigo
+-- Description:Maven Toy store
+-- Database design and analytical queries to evaluate profit,
+-- inventory value, and stock performance across stores.
+
+-- Create Products Table
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(255),
+    product_category VARCHAR(100),
+    product_cost DECIMAL(10, 2),
+    product_price DECIMAL(10, 2)
+);
+
+-- Create Stores Table
+CREATE TABLE stores (
+    store_id INT PRIMARY KEY,
+    store_name VARCHAR(255),
+    store_city VARCHAR(100),
+    store_location VARCHAR(100),
+    store_open_date DATE
+);
+-- Create inventory Table
+CREATE TABLE inventory (
+    store_id INT REFERENCES stores(store_id),
+    product_id INT REFERENCES products(product_id),
+    stock_on_hand INT,
+    PRIMARY KEY (store_id, product_id);
+);
+SELECT * FROM stores;
+SELECT * FROM products;
+SELECT * FROM inventory;
+
+CREATE TABLE sales (
+    sale_id INT PRIMARY KEY,
+    sale_date DATE,
+    store_id INT,
+    product_id INT,
+    units INT,
+    CONSTRAINT fk_sales_stores FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_sales_products FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+SELECT * FROM sales;
+
+SELECT 
+    p.product_category,
+    SUM(s.units * (p.product_price - p.product_cost)) AS total_profit
+FROM sales s
+JOIN products p ON s.product_id = p.product_id
+GROUP BY p.product_category
+ORDER BY total_profit DESC;
+
+SELECT 
+    st.store_location,
+    p.product_category,
+    SUM(s.units * (p.product_price - p.product_cost)) AS total_profit
+FROM sales s
+JOIN products p ON s.product_id = p.product_id
+JOIN stores st ON s.store_id = st.store_id
+GROUP BY st.store_location, p.product_category
+ORDER BY st.store_location, total_profit DESC;
+
+SELECT 
+    SUM(i.stock_on_hand * p.product_cost) AS total_inventory_value
+FROM inventory i
+JOIN products p ON i.product_id = p.product_id;
+
+WITH daily_sales AS (
+SELECT 
+  product_id, 
+  SUM(units) * 1.0 / (MAX(sale_date) - MIN(sale_date) + 1) AS avg_daily_sales
+  FROM sales
+  GROUP BY product_id
+)
+SELECT 
+    SUM(i.stock_on_hand) AS total_stock_units,
+    ROUND(SUM(ds.avg_daily_sales), 2) AS total_avg_daily_sales,
+    ROUND(SUM(i.stock_on_hand) / SUM(ds.avg_daily_sales), 0) AS estimated_days_of_supply
+FROM inventory i
+JOIN daily_sales ds ON i.product_id = ds.product_id;
+
+WITH top_products AS (
+    SELECT product_id, SUM(units) as total_sold
+    FROM sales
+    GROUP BY product_id
+    ORDER BY total_sold DESC
+    LIMIT 10
+)
+SELECT 
+    st.store_name,
+    st.store_city,
+    p.product_name,
+    i.stock_on_hand
+FROM inventory i
+JOIN stores st ON i.store_id = st.store_id
+JOIN products p ON i.product_id = p.product_id
+JOIN top_products tp ON p.product_id = tp.product_id
+WHERE i.stock_on_hand = 0
+ORDER BY st.store_name;
