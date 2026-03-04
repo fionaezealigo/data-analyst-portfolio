@@ -7,8 +7,8 @@ Aspiring Data Analyst with training in SQL, Excel, and Power BI. Passionate abou
 
 🛠 Tools & Skills
 - Microsoft Excel
-- SQL (Learning)
-- Power BI (Learning)
+- SQL
+- Power BI 
 - Data Cleaning
 - Data Analysis
 
